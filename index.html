@@ -1,0 +1,2284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Africa interactive map</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root{
+      --asu-black: #000000;
+      --asu-gold: rgb(255,198,39);
+      --asu-maroon: rgb(140,29,64);
+    }
+
+    * { box-sizing: border-box; }
+    
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+    }
+    /* Hide all scrollbars */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+#africaMap::-webkit-scrollbar {
+  display: none;
+}
+
+html,
+body,
+#africaMap {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+    body {
+      background: transparent;
+    }
+
+    #africaMap {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    #africaSvg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      cursor: grab;
+      overflow: hidden;
+    }
+
+    #africaSvg.dragging {
+      cursor: grabbing;
+    }
+
+    /* Countries */
+    .country {
+      fill: #6b7280;
+      stroke: #ffffff;
+      stroke-width: 1.2;
+      cursor: default;
+      pointer-events: none;
+      transition: fill 0.12s, stroke 0.12s;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .country.has-data {
+      fill: var(--asu-gold);
+      stroke: #ffffff;
+      stroke-width: 1.2;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .country.has-data:hover {
+      fill: rgb(230, 178, 35);
+      stroke: #ffffff;
+      stroke-width: 1.5;
+    }
+
+    .country.has-data.active {
+      fill: rgb(230, 178, 35);
+      stroke: #ffffff;
+      stroke-width: 2.0;
+    }
+
+    /* Zoom controls - always visible */
+    .zoom-controls {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 100;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 198, 39, 0.2);
+      background: rgba(0, 0, 0, 0.7);
+    }
+
+    .zoom-btn {
+      width: 36px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      transition: all 0.2s;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .zoom-btn:hover {
+      background: #fff;
+      border-color: var(--asu-gold);
+      transform: scale(1.05);
+    }
+
+    .zoom-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* Source attribution */
+    .source-box {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      color: #333;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      z-index: 50;
+      max-width: calc(100% - 20px);
+    }
+
+    .source-box strong {
+      font-weight: 600;
+      margin-right: 4px;
+    }
+
+    .source-box a {
+      color: var(--asu-maroon);
+      text-decoration: none;
+    }
+
+    .source-box a:hover {
+      text-decoration: underline;
+    }
+
+    svg {
+  overflow: hidden;
+}
+    /* Info card - Desktop */
+    #africaCard {
+      position: fixed;
+      display: none;
+      width: 420px;
+      max-width: calc(100vw - 20px);
+      max-height: calc(100vh - 40px);
+      background: Canvas;
+      color: CanvasText;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      z-index: 1000;
+      visibility: hidden;
+      overflow-y: auto;
+    }
+    
+    #africaCard.show {
+      visibility: visible;
+    }
+
+    .cardHead {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+        padding-left: 4px;   /* ADD THIS */
+  padding-right: 4px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    #africaCardTitle {
+      font-weight: 700;
+      font-size: 20px;
+      color: CanvasText;
+    }
+
+    #africaCardClose {
+      width: 32px;
+      height: 32px;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 8px;
+      background: transparent;
+      color: CanvasText;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    #africaCardClose:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .cardGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat {
+      background: rgba(0, 0, 0, 0.03);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .lbl {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: CanvasText;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .val {
+      font-size: 16px;
+      font-weight: 700;
+      color: CanvasText;
+    }
+
+    .description {
+      background: rgba(0, 0, 0, 0.02);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: CanvasText;
+    }
+
+    .sources-section {
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      padding-top: 12px;
+    }
+
+    .sources-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      opacity: 0.7;
+      margin-bottom: 8px;
+    }
+
+    .source-link {
+      display: block;
+      padding: 8px 10px;
+      background: rgba(0, 0, 0, 0.02);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: var(--asu-maroon);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .source-link:hover {
+      background: rgba(140, 29, 64, 0.08);
+      border-color: var(--asu-maroon);
+    }
+
+    .source-link.placeholder {
+      color: #999;
+      cursor: default;
+      font-style: italic;
+    }
+
+    .source-link.placeholder:hover {
+      background: rgba(0, 0, 0, 0.02);
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 768px) {
+      #africaMap {
+        overflow-y: scroll;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      #africaSvg {
+        cursor: default;
+      }
+      
+      /* Hide zoom controls and source on mobile */
+      .zoom-controls,
+      .source-box {
+        display: none;
+      }
+
+      #africaCard {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        padding: 60px 20px 32px 20px;
+        border: none;
+        flex-direction: column;
+        visibility: hidden;
+        display: flex;
+      }
+      
+      #africaCard.show {
+        visibility: visible;
+      }
+
+      .cardHead {
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        flex-shrink: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: Canvas;
+        z-index: 10;
+        padding-top: 20px;
+         padding-left: 20px;   /* ADD THIS */
+  padding-right: 20px;
+        margin-top: 0;
+      }
+
+      #africaCard > .cardGrid,
+      #africaCard > .description,
+      #africaCard > .sources-section {
+        margin-top: 80px;
+      }
+
+      #africaCard > .cardGrid {
+        margin-top: 100px;
+      }
+
+      #africaCardTitle {
+        font-size: 24px;
+      }
+
+      #africaCardClose {
+        width: 40px;
+        height: 40px;
+        font-size: 24px;
+      }
+
+      .cardGrid {
+        gap: 12px;
+      }
+
+      .stat {
+        padding: 14px;
+      }
+
+      .lbl {
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+
+      .val {
+        font-size: 18px;
+      }
+
+      .description {
+        font-size: 14px;
+        padding: 16px;
+        margin-bottom: 20px;
+      }
+
+      /* Hide map elements when card is open on mobile */
+      #africaMap.card-open #africaSvg {
+        display: none;
+      }
+
+      #africaMap.card-open {
+        overflow: hidden;
+      }
+    }
+
+    /* Very small mobile phones */
+    @media (max-width: 375px) {
+      .cardGrid {
+        grid-template-columns: 1fr;
+      }
+      
+      #africaCard {
+        padding: 20px 16px 28px 16px;
+      }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      #africaCard {
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      }
+
+      .source-box {
+        background: rgba(30, 30, 30, 0.95);
+        color: #e0e0e0;
+      }
+
+      .source-box a {
+        color: var(--asu-gold);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="africaMap">
+    <svg id="africaSvg" aria-label="Africa map"></svg>
+
+    <!-- Zoom controls -->
+    <div class="zoom-controls">
+      <button class="zoom-btn" id="zoomIn" aria-label="Zoom in">+</button>
+      <button class="zoom-btn" id="zoomOut" aria-label="Zoom out">−</button>
+      <button class="zoom-btn" id="zoomReset" aria-label="Reset zoom" style="font-size: 16px;">⊙</button>
+    </div>
+
+    <!-- Source attribution -->
+    <div class="source-box">
+      <strong>Data Sources:</strong> <span id="sourceText">Multiple sources including UN, World Bank, IMF</span>
+    </div>
+
+    <!-- Info card -->
+    <div id="africaCard" role="dialog" aria-label="Country details">
+      <div class="cardHead">
+        <div id="africaCardTitle">Country</div>
+        <button id="africaCardClose" type="button" aria-label="Close">×</button>
+      </div>
+      
+      <div class="cardGrid">
+        <div class="stat"><div class="lbl">Population</div><div class="val" id="popVal">—</div></div>
+        <div class="stat"><div class="lbl">GDP per Capita</div><div class="val" id="gdpVal">—</div></div>
+        <div class="stat"><div class="lbl">Universities</div><div class="val" id="uniVal">—</div></div>
+        <div class="stat"><div class="lbl">Youth Pop %</div><div class="val" id="youthVal">—</div></div>
+        <div class="stat"><div class="lbl">Youth Unemployment</div><div class="val" id="youthUnempVal">—</div></div>
+        <div class="stat"><div class="lbl">Dominant Sector</div><div class="val" id="sectorVal">—</div></div>
+      </div>
+
+      <div class="description" id="descriptionText">
+        Country description will appear here.
+      </div>
+
+      <div class="sources-section">
+        <div class="sources-title">Data Sources</div>
+        <div id="sourcesContainer"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+  (() => {
+    const geoUrl = "https://raw.githubusercontent.com/LiaScript/GeoJson/master/africa.geo.json";
+
+    // Sample data - replace with your full dataset
+const stats = {
+  "AGO": {
+    "country": "Angola",
+    "population": "37.89M",
+    "gdp_per_capita": "$2,666",
+    "dominant_sector": "Agriculture (56%)",
+    "youth_unemployment": "27.9%",
+    "universities": 20.0,
+    "description": "Angola is one of Sub-Saharan Africa’s largest energy producers, with an economy historically tied to oil and a rapidly growing, and a predominantly urban population centered around Luanda- the capital city. More than two decades after its civil war, Angola continues to prioritize reconstruction, poverty reduction, and expanded access to education as it diversifies beyond hydrocarbons. A young demographic profile and relatively low literacy rates underscore the need for university-led innovation, digital skills, and workforce development that can support more inclusive, sustainable growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Source)",
+        "url": "Population, total - Angola"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=AO"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=AO"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=AO"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/ao/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/angola/"
+      }
+    ]
+  },
+  "BEN": {
+    "country": "Benin",
+    "population": "14.46M",
+    "gdp_per_capita": "$1,485",
+    "dominant_sector": "Services (50%)",
+    "youth_unemployment": "3.3%",
+    "universities": 24.0,
+    "description": "Benin is a coastal West African democracy with a large youth population, as nearly 65% of its people are under 25 years old, which is driving the demand for jobs and skills-focused education. The economic growth is anchored in agriculture and regional trade, while port infrastructure at Cotonou positions Benin as a key logistics and commerce hub. Rising investment in human capital, including basic and tertiary education, supports the ongoing national strategies for inclusive development and technological reforms.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=BJ"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=BJ"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=BJ"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=BJ"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/bj/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/benin/"
+      }
+    ]
+  },
+  "BWA": {
+    "country": "Botswana",
+    "population": "2.52M",
+    "gdp_per_capita": "$7,696",
+    "dominant_sector": "Services (66%)",
+    "youth_unemployment": "43.9%",
+    "universities": 15.0,
+    "description": "Botswana is a politically stable, landlocked country whose post-independence growth has been driven by diamond mining, prudent macroeconomic management, and strong institutions. The government invests heavily in education, nearly 7-9% of its GDP, and the adult literacy rate is close to 89%, reflecting a solid foundation for skills development. As Botswana seeks to diversify into services, tourism, and information economy, universities are increasingly important to advancing innovation, digital capabilities, and sustainable economic transformation.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "http://data.worldbank.org/indicator/SP.POP.TOTL?locations=BW"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=BW"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=BW"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=BW"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/bw/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/botswana/"
+      }
+    ]
+  },
+  "BFA": {
+    "country": "Burkina Faso",
+    "population": "23.55M",
+    "gdp_per_capita": "$982",
+    "dominant_sector": "Services (46%)",
+    "youth_unemployment": "8.1%",
+    "universities": 16.0,
+    "description": "Burkina Faso is a low-income, landlocked West African country with a predominantly rural population and an economy which is heavily reliant on agriculture and gold mining. A large young demographic profile- more than 60% under the age of 25- combined with high poverty and limited infrastructure intensifies the demand for infrastructural advancements and education. Expanding access to tertiary education and implementing reforms that develop human capital are central to the national strategies for resilience amid economic insecurity and climate pressures.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=BF"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=BF"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=BF"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=BF"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/bf/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/burkina-faso/"
+      }
+    ]
+  },
+  "BDI": {
+    "country": "Burundi",
+    "population": "14.05M",
+    "gdp_per_capita": "$219",
+    "dominant_sector": "Agriculture (85%)",
+    "youth_unemployment": "1.6%",
+    "universities": 20.0,
+    "description": "Burundi is a densely populated, landlocked country in the Great Lakes region, with an economy dominated by subsistence agriculture but constrained by recurrent political instability. Its rapidly growing, largely rural population faces high poverty and limited formal employment opportunities. Education expenditures near ~5% of GDP and improving literacy rates reflect the country's efforts to expand access and foster human capital development for a long-term growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=BI"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=BI"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=BI"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=BI"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/bi/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/burundi/"
+      }
+    ]
+  },
+  "CPV": {
+    "country": "Cabo Verde",
+    "population": "0.52M",
+    "gdp_per_capita": "$5,192",
+    "dominant_sector": "Services (68%)",
+    "youth_unemployment": "28.2%",
+    "universities": 9.0,
+    "description": "Cabo Verde is a small Atlantic archipelago with limited natural resources but a relatively high personnel development, democratic stability, and strong links to a global diaspora. Services, especially tourism, transport, and remittance-fueled consumption, dominate an economy that has largely shifted away from agriculture. High literacy, significant education spending, and expanding connectivity position Cabo Verde to broaden skills development and knowledge-based growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=CV"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=CV"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=CV"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=CV"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/cv/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/cabo-verde/"
+      }
+    ]
+  },
+  "CMR": {
+    "country": "Cameroon",
+    "population": "29.12M",
+    "gdp_per_capita": "$1,830",
+    "dominant_sector": "Agriculture (43%)",
+    "youth_unemployment": "6.2%",
+    "universities": 16.0,
+    "description": "Cameroon is a lower-middle income Central African country with significant oil, gas, and agricultural resources and one of the region’s most diversified commodity economies. Its population exceeds ~28 million and is both ethnically and linguistically diverse, officially using French and English in a bilingual education system. Rapid urbanization, security pressures in several regions, and high youth unemployment make investments in skills, digital infrastructure, and higher education central to inclusive growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=CM"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=CM"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=CM"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=CM"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/cm/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/cameroon/"
+      }
+    ]
+  },
+  "CAF": {
+    "country": "Central African Republic",
+    "population": "5.33M",
+    "gdp_per_capita": "$516",
+    "dominant_sector": "Agriculture (71%)",
+    "youth_unemployment": "9.5%",
+    "universities": 1.0,
+    "description": "CIA - The World Factbook",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=CF"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=CF"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=CF"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=CF"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/cf/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/central-african-republic/"
+      }
+    ]
+  },
+  "TCD": {
+    "country": "Chad",
+    "population": "20.30M",
+    "gdp_per_capita": "$962",
+    "dominant_sector": "Agriculture (69%)",
+    "youth_unemployment": "1.5%",
+    "universities": 9.0,
+    "description": "Chad is a large, landlocked Sahelian country whose economy depend on oil revenues and subsistence agriculture, and is highly exposed to climate variability. It has a young, fast-growing population exceeding ~17 million, low literacy rates, and limited infrastructure, especially outside N’Djamena, the capital city. Expanding access to basic and higher education, alongside water and energy resilience, is central to addressing poverty, insecurity, and environmental stress.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=TD"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=TD"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=TD"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=TD"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/td/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/chad/"
+      }
+    ]
+  },
+  "COD": {
+    "country": "Congo, Dem. Rep.",
+    "population": "109.28M",
+    "gdp_per_capita": "$649",
+    "dominant_sector": "Agriculture (55%)",
+    "youth_unemployment": "8.5%",
+    "universities": 66.0,
+    "description": "CIA - The World Factbook",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=CD"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=CD"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=CD"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=CD"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/cd/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/congo-dem-rep/"
+      }
+    ]
+  },
+  "COG": {
+    "country": "Congo, Rep.",
+    "population": "6.33M",
+    "gdp_per_capita": "$2,482",
+    "dominant_sector": "Services (47%)",
+    "youth_unemployment": "40.0%",
+    "universities": 1.0,
+    "description": "CIA - The World Factbook",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=CG"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=CG"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=CG"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=CG"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/cg/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/congo-rep/"
+      }
+    ]
+  },
+  "DJI": {
+    "country": "Djibouti",
+    "population": "1.17M",
+    "gdp_per_capita": "$3,553",
+    "dominant_sector": "Services (93%)",
+    "youth_unemployment": "76.3%",
+    "universities": 1.0,
+    "description": "Djibouti is part of the \"Horn of Africa\", it is a small, but strategically located country at the Bab el-Mandeb Strait, serving as a key maritime and logistics hub linking Africa, the Middle East, and Asia. Services are mainly tied to port operations, military basing, and transport, which also dominate they country's economy. Limited natural resources, high unemployment, and dependence on food imports heighten the importance of human capital development, technical training, and digital connectivity for resilient growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=DJ"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=DJ"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=DJ"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=DJ"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/dj/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/djibouti/"
+      }
+    ]
+  },
+  "GNQ": {
+    "country": "Equatorial Guinea",
+    "population": "1.89M",
+    "gdp_per_capita": "$6,745",
+    "dominant_sector": "Agriculture (56%)",
+    "youth_unemployment": "14.7%",
+    "universities": 1.0,
+    "description": "Equatorial Guinea is a small Central African country whose economy transformed with the discovery of offshore oil and gas in the 1990s. Despite high per capita income by regional standards, poverty and inequality remain significant, and economic diversification is limited. A relatively small, youthful population and ongoing infrastructure development create opportunities to expand education access, technical training, and governance capacity beyond the hydrocarbons sector.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=GQ"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=GQ"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=GQ"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=GQ"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/gq/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/equatorial-guinea/"
+      }
+    ]
+  },
+  "ERI": {
+    "country": "Eritrea",
+    "population": "3.54M",
+    "gdp_per_capita": "N/A",
+    "dominant_sector": "Agriculture (61%)",
+    "youth_unemployment": "9.4%",
+    "universities": 7.0,
+    "description": "Eritrea is part of the \"Horn of Africa\", it is a Red Sea coastal state that gained independence from Ethiopia in 1993, with an economy based on agriculture, remittances, and emerging mining. Periodic drought, limited arable land, and prior conflict have constrained development and contributed to outmigration. The government emphasizes self-reliance and national service, making investments in basic education, vocational training, and institutional capacity central to future growth and youth development.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=ER"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=ER"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=ER"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=ER"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/er/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/eritrea/"
+      }
+    ]
+  },
+  "SWZ": {
+    "country": "Eswatini",
+    "population": "1.24M",
+    "gdp_per_capita": "$3,910",
+    "dominant_sector": "Services (68%)",
+    "youth_unemployment": "58.2%",
+    "universities": 7.0,
+    "description": "CIA - The World Factbook",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=SZ"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=SZ"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=SZ"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=SZ"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/sz/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/eswatini/"
+      }
+    ]
+  },
+  "ETH": {
+    "country": "Ethiopia",
+    "population": "132.06M",
+    "gdp_per_capita": "$1,134",
+    "dominant_sector": "Agriculture (62%)",
+    "youth_unemployment": "5.4%",
+    "universities": 51.0,
+    "description": "Ethiopia is part of the \"Horn of Africa\", it is Africa’s second most populous country, a highland-dominated state transitioning from an agriculture-based economy and toward manufacturing and services. Real growth was strong over the past two decades, driven by public investment in infrastructure, but conflict and macroeconomic imbalances have created some new challenges. A very young population and expanding school enrollment make quality higher education, digital connectivity, and job creation central to long-term stability and transformation.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=ET"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=ET"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=ET"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=ET"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/et/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/ethiopia/"
+      }
+    ]
+  },
+  "GAB": {
+    "country": "Gabon",
+    "population": "2.54M",
+    "gdp_per_capita": "$8,230",
+    "dominant_sector": "Services (55%)",
+    "youth_unemployment": "36.0%",
+    "universities": 23.0,
+    "description": "Gabon is a sparsely populated Central African country with significant oil, manganese, and forest resources and one of the higher per capita incomes in Sub-Saharan Africa. The economy has long relied on hydrocarbons, making diversification toward services, mining, and sustainable forestry a priority. High urbanization and relatively strong infrastructure create favorable conditions for tertiary education focused on environmental management, innovation, and green growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=GA"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=GA"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=GA"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=GA"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/ga/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/gabon/"
+      }
+    ]
+  },
+  "GMB": {
+    "country": "Gambia, The",
+    "population": "2.76M",
+    "gdp_per_capita": "$871",
+    "dominant_sector": "Services (52%)",
+    "youth_unemployment": "10.9%",
+    "universities": 2.0,
+    "description": "CIA - The World Factbook",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=GM"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=GM"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=GM"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=GM"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/gm/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/gambia-the/"
+      }
+    ]
+  },
+  "GHA": {
+    "country": "Ghana",
+    "population": "34.43M",
+    "gdp_per_capita": "$2,391",
+    "dominant_sector": "Services (47%)",
+    "youth_unemployment": "5.4%",
+    "universities": 69.0,
+    "description": "Ghana is a stable West African democracy and a regional hub whose diversified economy is anchored in gold, cocoa, and oil, alongside services and manufacturing. Urbanization is rising, poverty has fallen over time, and infrastructure has improved, though debt and job creation continue to remain as the main challenges. High primary and lower-secondary enrollment, a growing university sector, and strong youth demographics position Ghana to deepen innovation and technology-led growth through higher education.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=GH"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=GH"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=GH"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=GH"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/gh/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/ghana/"
+      }
+    ]
+  },
+  "GIN": {
+    "country": "Guinea",
+    "population": "14.75M",
+    "gdp_per_capita": "$1,695",
+    "dominant_sector": "Agriculture (58%)",
+    "youth_unemployment": "7.1%",
+    "universities": 1.0,
+    "description": "Guinea is endowed with major bauxite reserves and hydropower potential, yet remains one of the world’s poorer countries with limited infrastructure and human development indicators. Agriculture employs the majority of the population, and political instability has periodically disrupted growth and public services. Rapid population increase and low literacy rates reinforce the need for investments in schooling, higher education, technical and skills based training, and governance capacity to translate resource wealth into wholistic development.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=GN"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=GN"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=GN"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=GN"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/gn/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/guinea/"
+      }
+    ]
+  },
+  "GNB": {
+    "country": "Guinea-Bissau",
+    "population": "2.20M",
+    "gdp_per_capita": "$1,008",
+    "dominant_sector": "Agriculture (50%)",
+    "youth_unemployment": "2.8%",
+    "universities": "N/A",
+    "description": "Guinea-Bissau is a small West African country with an economy dominated by cashew nut exports, fishing, and subsistence agriculture. It has experienced chronic political instability, weak institutions, and very low rankings on human development indicators. A young population, limited infrastructure, and low literacy rates make strengthened education systems and public administration central to social cohesion and economic resilience for Guinea-Bissau.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=GW"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=GW"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=GW"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=GW"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/guinea-bissau/"
+      }
+    ]
+  },
+  "KEN": {
+    "country": "Kenya",
+    "population": "56.43M",
+    "gdp_per_capita": "$2,132",
+    "dominant_sector": "Services (52%)",
+    "youth_unemployment": "11.9%",
+    "universities": 69.0,
+    "description": "Kenya is an East African economic hub with a diversified economy spanning agriculture, manufacturing, finance, and a dynamic information and communications technology sector. Nairobi, the capital city, serves as a regional center for services and innovation, but inequality, unemployment, and infrastructure gaps persist. High literacy, expanding secondary and tertiary enrollment, and strong mobile connectivity create favorable conditions for digital learning and a skills-driven growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=KE"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=KE"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=KE"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=KE"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/ke/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/kenya/"
+      }
+    ]
+  },
+  "LSO": {
+    "country": "Lesotho",
+    "population": "2.34M",
+    "gdp_per_capita": "$972",
+    "dominant_sector": "Services (36%)",
+    "youth_unemployment": "24.2%",
+    "universities": 2.0,
+    "description": "Lesotho is a mountainous, landlocked country encircled by South Africa, with an economy based on remittances, textiles exports, and water and electricity sales. Many Basotho work in South Africa, still poverty and HIV/AIDS rates remain high. Public spending on education is significant, and improving quality and relevance of secondary and tertiary education is key to diversifying livelihoods.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=LS"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=LS"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=LS"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=LS"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/ls/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/lesotho/"
+      }
+    ]
+  },
+  "LBR": {
+    "country": "Liberia",
+    "population": "5.61M",
+    "gdp_per_capita": "$852",
+    "dominant_sector": "Services (53%)",
+    "youth_unemployment": "2.1%",
+    "universities": 11.0,
+    "description": "CIA - The World Factbook",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=LR"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=LR"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=LR"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=LR"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/lr/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/liberia/"
+      }
+    ]
+  },
+  "MDG": {
+    "country": "Madagascar",
+    "population": "31.96M",
+    "gdp_per_capita": "$545",
+    "dominant_sector": "Agriculture (69%)",
+    "youth_unemployment": "5.4%",
+    "universities": 6.0,
+    "description": "Madagascar is a large island nation in the Indian Ocean, noted for exceptional biodiversity and natural resources, however, it faces widespread poverty and recurrent political instability. The economy is based on agriculture, mining, and services, including niche tourism. Sparse electricity coverage, infrastructure gaps, and climate vulnerability all heighten the importance of education, environmental management, and science and technology capacity for sustainable development.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=MG"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=MG"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=MG"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=MG"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/mg/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/madagascar/"
+      }
+    ]
+  },
+  "MWI": {
+    "country": "Malawi",
+    "population": "21.66M",
+    "gdp_per_capita": "$523",
+    "dominant_sector": "Agriculture (62%)",
+    "youth_unemployment": "6.8%",
+    "universities": 20.0,
+    "description": "Malawi is a densely populated, landlocked country whose low-income economy is heavily dependent on rain-fed agriculture, especially tobacco, tea, and sugar. Food insecurity, high population growth, and HIV/AIDS weigh heavy on human development indicators. Education enrollment has expanded but quality and access to secondary and tertiary levels lag, making investments in skills and institutional capacity crucial for resilience.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=MW"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=MW"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=MW"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=MW"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/mw/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/malawi/"
+      }
+    ]
+  },
+  "MLI": {
+    "country": "Mali",
+    "population": "24.48M",
+    "gdp_per_capita": "$1,095",
+    "dominant_sector": "Agriculture (68%)",
+    "youth_unemployment": "4.0%",
+    "universities": 10.0,
+    "description": "Mali is a vast, landlocked Sahelian state with a predominantly rural population and an economy centered on agriculture and gold mining. Since 2012, insecurity and political upheaval has disrupted services and displaced communities, especially in the north and center regions. Low literacy and limited infrastructure underscore the role of education, governance reform, and community-level institutions in supporting stability and inclusive growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=ML"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=ML"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=ML"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=ML"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/ml/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/mali/"
+      }
+    ]
+  },
+  "MRT": {
+    "country": "Mauritania",
+    "population": "5.17M",
+    "gdp_per_capita": "$2,110",
+    "dominant_sector": "Services (53%)",
+    "youth_unemployment": "23.2%",
+    "universities": 4.0,
+    "description": "Mauritania spans the Sahara and Sahel with a small, sparsely distributed population and an economy reliant on iron ore, fisheries, and, offshore gas. Drought, desertification, and urbanization pressures have significantly transformed traditional pastoral livelihoods. Thus, expanding access to schooling, especially for girls and rural communities, and strengthening vocational and higher education are central to broadening growth opportunities.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=MR"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=MR"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=MR"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=MR"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/mr/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/mauritania/"
+      }
+    ]
+  },
+  "MUS": {
+    "country": "Mauritius",
+    "population": "1.25M",
+    "gdp_per_capita": "$11,991",
+    "dominant_sector": "Services (72%)",
+    "youth_unemployment": "16.6%",
+    "universities": 5.0,
+    "description": "Mauritius is a small island state in the Indian Ocean that has transitioned from a mono-crop sugar economy to a diversified hub for tourism, textiles, financial services, and ICT. It ranks high on regional governance and human development indicators, with near-universal literacy and strong infrastructure. Education and skills upgrading underpin efforts to position Mauritius as a knowledge and innovation-driven economy.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=MU"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=MU"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=MU"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=MU"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/mu/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/mauritius/"
+      }
+    ]
+  },
+  "MOZ": {
+    "country": "Mozambique",
+    "population": "34.63M",
+    "gdp_per_capita": "$657",
+    "dominant_sector": "Agriculture (69%)",
+    "youth_unemployment": "7.4%",
+    "universities": 11.0,
+    "description": "Mozambique is a coastal Southern African country with significant natural gas, coal, and agricultural potential but one of the lowest per capita incomes globally. Civil war legacies, cyclones, and conflict in the north have strained infrastructure and public services. Rapid population growth and low secondary completion rates make strengthening education, technical training, and institutional resilience a core development priority.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=MZ"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=MZ"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=MZ"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=MZ"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/mz/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/mozambique/"
+      }
+    ]
+  },
+  "NAM": {
+    "country": "Namibia",
+    "population": "3.03M",
+    "gdp_per_capita": "$4,413",
+    "dominant_sector": "Services (62%)",
+    "youth_unemployment": "37.3%",
+    "universities": 3.0,
+    "description": "Namibia is a sparsely populated country along the Atlantic with major diamond, uranium, and fisheries resources and relatively strong infrastructure for the region. Inequality remains high despite upper-middle-income status, and unemployment primarily affects the youth population. Education spending is significant, with efforts to expand vocational, technical, and higher education support for diversification into logistics, tourism, and renewable energy.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=NA"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=NA"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=NA"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=NA"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/na/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/namibia/"
+      }
+    ]
+  },
+  "NER": {
+    "country": "Niger",
+    "population": "27.03M",
+    "gdp_per_capita": "$735",
+    "dominant_sector": "Agriculture (71%)",
+    "youth_unemployment": "0.3%",
+    "universities": 3.0,
+    "description": "Niger is a landlocked Sahelian state with one of the world’s fastest-growing populations, a predominantly rural society, and an economy reliant on agriculture and uranium. Recurrent drought, food insecurity, and insecurity in border regions constrain development. Extremely low literacy rates and high gender gaps in schooling make education expansion and system strengthening pivotal for long-term resilience and wholistic growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=NE"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=NE"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=NE"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=NE"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/ne/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/niger/"
+      }
+    ]
+  },
+  "NGA": {
+    "country": "Nigeria",
+    "population": "232.68M",
+    "gdp_per_capita": "$1,084",
+    "dominant_sector": "Services (48%)",
+    "youth_unemployment": "5.1%",
+    "universities": 165.0,
+    "description": "Nigeria is Africa’s most populous country and largest economy, driven by oil and gas, services, agriculture, and an expanding tech sector. A large youth population, rapid urbanization, and regional disparities shape its development trajectory. While tertiary education institutions are prevelant in number (~165), challenges around quality, access, workforce readiness, and strikes persist, underscoring the importance of governance, digital infrastructure, and skills alignment with the labor-market needs.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=NG"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=NG"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=NG"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=NG"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/ng/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/nigeria/"
+      }
+    ]
+  },
+  "RWA": {
+    "country": "Rwanda",
+    "population": "14.26M",
+    "gdp_per_capita": "$1,000",
+    "dominant_sector": "Agriculture (55%)",
+    "youth_unemployment": "17.5%",
+    "universities": 19.0,
+    "description": "Rwanda is a small, landlocked country that has achieved notable growth and poverty reduction since the 1994 genocide through reforms emphasizing stability, governance, and services. The economy increasingly focuses on services, light manufacturing, and ICT alongside agriculture. High primary enrollment, improving infrastructure, and a strong policy focus on technology and innovation support is critical to Rwanda's ambitions to build a knowledge-based economy.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=RW"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=RW"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=RW"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=RW"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/rw/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/rwanda/"
+      }
+    ]
+  },
+  "SEN": {
+    "country": "Senegal",
+    "population": "18.50M",
+    "gdp_per_capita": "$1,773",
+    "dominant_sector": "Services (56%)",
+    "youth_unemployment": "4.1%",
+    "universities": 28.0,
+    "description": "Senegal is a politically stable West African country with a diversified economy spanning agriculture, fishing, services, and emerging oil and gas. Dakar, the capital city, is a regional hub for diplomacy, culture, and higher education. Expanding infrastructure, strong youth demographics, and high urbanization highlight the importance of education reform, vocational training, and digital skills for inclusive growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=SN"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=SN"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=SN"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=SN"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/sn/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/senegal/"
+      }
+    ]
+  },
+  "SLE": {
+    "country": "Sierra Leone",
+    "population": "8.64M",
+    "gdp_per_capita": "$807",
+    "dominant_sector": "Services (45%)",
+    "youth_unemployment": "3.6%",
+    "universities": 7.0,
+    "description": "Sierra Leone is a coastal West African country recovering from civil war and the Ebola crisis, with an economy centered on agriculture and mineral resources such as diamonds and iron ore. Poverty rates remain high, and infrastructure and public services are still rebuilding. Education access and completion have significantly uplifted the youth, but quality and capacity constraints persist, making continued investment in schools, universities, and teacher training essential to the country's long-term growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=SL"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=SL"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=SL"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=SL"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/sl/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/sierra-leone/"
+      }
+    ]
+  },
+  "SOM": {
+    "country": "Somalia",
+    "population": "19.01M",
+    "gdp_per_capita": "$637",
+    "dominant_sector": "Services (56%)",
+    "youth_unemployment": "33.9%",
+    "universities": 52.0,
+    "description": "Somalia is part of the \"Horn of Africa\", a country that has faced decades of state fragility, conflict, and humanitarian crises, including drought and food insecurity. The economy is largely informal, based on livestock, remittances, trade, and telecommunications. Re-establishing governance structures, expanding basic and tertiary education, and building institutional capacity are of priority to current leaders to establish a path towards stabilization and long-term development.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://datacommons.org/place/country/SOM"
+      },
+      {
+        "label": "GDP per Capita (Source)",
+        "url": "https://datacommons.org/place/country/SOM"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=SO"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=SO"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/so/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/somalia/"
+      }
+    ]
+  },
+  "ZAF": {
+    "country": "South Africa",
+    "population": "64.01M",
+    "gdp_per_capita": "$6,267",
+    "dominant_sector": "Services (64%)",
+    "youth_unemployment": "60.9%",
+    "universities": 25.0,
+    "description": "South Africa is a middle-income country and the continent’s most industrialized economy, with strong mining, manufacturing, services, and financial sectors. It has well-established universities and research institutions but faces high inequality, unemployment, and spatial disparities rooted in apartheid. Expanding equitable access to quality education, digital infrastructure, and innovation ecosystems is key to its inclusive and long-term growth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=ZA"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=ZA"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=ZA"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=ZA"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/za/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/south-africa/"
+      }
+    ]
+  },
+  "SSD": {
+    "country": "South Sudan",
+    "population": "11.94M",
+    "gdp_per_capita": "N/A",
+    "dominant_sector": "Agriculture (59%)",
+    "youth_unemployment": "18.5%",
+    "universities": 12.0,
+    "description": "CIA - The World Factbook",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=SS"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=SS"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=SS"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=SS"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/ss/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/south-sudan/"
+      }
+    ]
+  },
+  "TZA": {
+    "country": "Tanzania",
+    "population": "68.56M",
+    "gdp_per_capita": "$1,187",
+    "dominant_sector": "Agriculture (65%)",
+    "youth_unemployment": "3.3%",
+    "universities": 30.0,
+    "description": "Tanzania is an East African state with abundant natural resources, including natural gas, minerals, and wildlife, and a large, predominantly rural population. Economic growth has been robust, driven by construction, services, and extractives, though poverty remains widespread. Expanding access to secondary and tertiary education, alongside investment in infrastructure and digital connectivity, is critical to harnessing its demographic potential.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=TZ"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=TZ"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=TZ"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=TZ"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/tz/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/tanzania/"
+      }
+    ]
+  },
+  "TGO": {
+    "country": "Togo",
+    "population": "9.52M",
+    "gdp_per_capita": "$1,119",
+    "dominant_sector": "Services (50%)",
+    "youth_unemployment": "3.4%",
+    "universities": 4.0,
+    "description": "Togo is a narrow West African country with a mixed economy combining agriculture, phosphates mining, and trade through the port of Lomé. It has a young population and relatively limited natural resources beyond phosphates. Education participation has improved, but completion rates and quality challenges remain, making system strengthening and skills development vital for diversification and boosting employment.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=TG"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=TG"
+      },
+      {
+        "label": "Dominant Sector – Employment in Services (% of total employment, World Bank)",
+        "url": "https://data.worldbank.org/indicator/SL.SRV.EMPL.ZS?locations=TG"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=TG"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/tg/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/togo/"
+      }
+    ]
+  },
+  "UGA": {
+    "country": "Uganda",
+    "population": "50.02M",
+    "gdp_per_capita": "$1,078",
+    "dominant_sector": "Agriculture (66%)",
+    "youth_unemployment": "4.5%",
+    "universities": 43.0,
+    "description": "Uganda is a landlocked East African country with a very young and fast-growing population and an economy based on agriculture, services, and emerging oil. Poverty has declined, but job creation has lagged behind demographic growth. Primary enrollment is high under universal primary education, yet pressure on secondary and tertiary systems is intense, underscoring the need for vocational training, expanded capacity in universities, and quality improvements in job creation.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=UG"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=UG"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=UG"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=UG"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/ug/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/uganda/"
+      }
+    ]
+  },
+  "ZMB": {
+    "country": "Zambia",
+    "population": "21.31M",
+    "gdp_per_capita": "$1,187",
+    "dominant_sector": "Agriculture (55%)",
+    "youth_unemployment": "9.9%",
+    "universities": 52.0,
+    "description": "Zambia is a landlocked Southern African country whose economy is heavily dependent on copper mining, making it vulnerable to global price swings. Rapid urbanization and high debt burdens pose additional challenges. Education access has expanded since the 2000s, but quality, especially in rural areas, and alignment with labor-market needs remain key priorities for boosting employment among the youth.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=ZM"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=ZM"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=ZM"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=ZM"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/zm/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/zambia/"
+      }
+    ]
+  },
+  "ZWE": {
+    "country": "Zimbabwe",
+    "population": "16.63M",
+    "gdp_per_capita": "$2,497",
+    "dominant_sector": "Agriculture (53%)",
+    "youth_unemployment": "14.0%",
+    "universities": 11.0,
+    "description": "Zimbabwe has significant mineral, agricultural, and human resources, but its economy has been constrained by recurrent crises, high inflation, and infrastructure decay. Agriculture and mining remain central, while manufacturing has struggled to reach the same heights. Historically, strong education systems achieved high literacy, yet funding constraints and emigration of professionals have strained institutions, reinforcing the importance of reinvestment in schools and universities.",
+    "sources": [
+      {
+        "label": "Population & GDP per Capita (Data Commons / World Bank, 2024)",
+        "url": "https://data.worldbank.org/indicator/SP.POP.TOTL?locations=ZW"
+      },
+      {
+        "label": "GDP per Capita – World Bank (current US$, 2024)",
+        "url": "https://data.worldbank.org/indicator/NY.GDP.PCAP.CD?locations=ZW"
+      },
+      {
+        "label": "Dominant Sector (World Bank, 2023)",
+        "url": "https://data.worldbank.org/indicator/SL.AGR.EMPL.ZS?locations=ZW"
+      },
+      {
+        "label": "Youth Unemployment – Ages 15–24 (World Bank / ILO, 2024)",
+        "url": "https://data.worldbank.org/indicator/SL.UEM.1524.ZS?locations=ZW"
+      },
+      {
+        "label": "Universities (UniRank, 2024)",
+        "url": "https://www.unirank.org/zw/"
+      },
+      {
+        "label": "Country Description (CIA World Factbook, 2023)",
+        "url": "https://www.cia.gov/the-world-factbook/countries/zimbabwe/"
+      }
+    ]
+  }
+};
+    const root = document.getElementById("africaMap");
+    const svg = d3.select("#africaSvg");
+    const card = document.getElementById("africaCard");
+    const closeBtn = document.getElementById("africaCardClose");
+
+    const cardTitle = document.getElementById("africaCardTitle");
+    const popVal = document.getElementById("popVal");
+    const gdpVal = document.getElementById("gdpVal");
+    const uniVal = document.getElementById("uniVal");
+    const youthVal = document.getElementById("youthVal");
+    const youthUnempVal = document.getElementById("youthUnempVal");
+    const sectorVal = document.getElementById("sectorVal");
+    const descriptionText = document.getElementById("descriptionText");
+    const sourcesContainer = document.getElementById("sourcesContainer");
+
+    const projection = d3.geoMercator().center([20, 3]);
+    const path = d3.geoPath(projection);
+
+    let countriesGroup = null;
+    let geoData = null;
+    let zoomBehavior = null;
+    
+    const isMobile = () => window.innerWidth <= 768;
+
+    function getDimensions() {
+      const rect = svg.node().getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    }
+
+    function updateProjectionAndZoom() {
+      if (!geoData) return;
+      
+      const { width, height } = getDimensions();
+      const padding = 22;
+
+      projection.fitExtent([[padding, padding], [width - padding, height - padding]], geoData);
+
+      if (zoomBehavior) {
+        svg.on(".zoom", null);
+      }
+
+      zoomBehavior = d3.zoom()
+        .scaleExtent([1, 8])
+        .translateExtent([[0, 0], [width, height]])
+        .extent([[0, 0], [width, height]])
+        .on("zoom", (event) => {
+          if (countriesGroup) countriesGroup.attr("transform", event.transform);
+        });
+
+      svg.call(zoomBehavior);
+      svg.attr("viewBox", `0 0 ${width} ${height}`);
+
+      if (countriesGroup) {
+        countriesGroup.selectAll("path").attr("d", path);
+      }
+    }
+
+    d3.select("#zoomIn").on("click", () => {
+      svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.5);
+    });
+
+    d3.select("#zoomOut").on("click", () => {
+      svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.67);
+    });
+
+    d3.select("#zoomReset").on("click", () => {
+      svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
+    });
+
+    function hideCard() {
+      card.classList.remove("show");
+      setTimeout(() => {
+        card.style.display = "none";
+      }, 50);
+      root.classList.remove("card-open");
+      if (countriesGroup) countriesGroup.selectAll(".country").classed("active", false);
+    }
+
+    closeBtn.addEventListener("click", hideCard);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") hideCard();
+    });
+
+    document.addEventListener("click", (e) => {
+      if (card.style.display === "none") return;
+      if (!card.contains(e.target) && !e.target.closest('.country.has-data')) {
+        hideCard();
+      }
+    });
+
+    function showCardAt(clientX, clientY) {
+      card.style.display = "block";
+      
+      requestAnimationFrame(() => {
+        card.classList.add("show");
+      });
+
+      if (isMobile()) {
+        root.classList.add("card-open");
+        card.style.left = "";
+        card.style.top = "";
+        return;
+      }
+
+      root.classList.remove("card-open");
+      requestAnimationFrame(() => {
+        const cardRect = card.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        
+        let left = clientX + 12;
+        let top = clientY + 12;
+
+        const maxLeft = viewportWidth - cardRect.width - 12;
+        const maxTop = viewportHeight - cardRect.height - 12;
+
+        if (left > maxLeft) left = Math.max(12, clientX - cardRect.width - 12);
+        if (top > maxTop) top = Math.max(12, clientY - cardRect.height - 12);
+
+        left = Math.max(12, Math.min(left, maxLeft));
+        top = Math.max(12, Math.min(top, maxTop));
+
+        card.style.left = left + "px";
+        card.style.top = top + "px";
+      });
+    }
+
+    function stripFarSouthIslands(feature, minLatKeep = -38) {
+      const p = feature.properties || {};
+      const iso = p.ISO_A3 || p.iso_a3 || p.ID || "";
+
+      if (iso !== "ZAF") return feature;
+
+      const g = feature.geometry;
+      if (!g) return feature;
+
+      const centroidLat = (polyCoords) => {
+        const tmp = { type: "Feature", geometry: { type: "Polygon", coordinates: polyCoords } };
+        return d3.geoCentroid(tmp)[1];
+      };
+
+      if (g.type === "Polygon") {
+        const lat = centroidLat(g.coordinates);
+        if (lat < minLatKeep) return null;
+        return feature;
+      }
+
+      if (g.type === "MultiPolygon") {
+        const kept = g.coordinates.filter(polyCoords => centroidLat(polyCoords) >= minLatKeep);
+        if (!kept.length) return feature;
+
+        return {
+          ...feature,
+          geometry: { type: "MultiPolygon", coordinates: kept }
+        };
+      }
+
+      return feature;
+    }
+
+    let resizeTimeout;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        updateProjectionAndZoom();
+      }, 150);
+    });
+
+    d3.json(geoUrl).then(rawGeo => {
+      geoData = {
+        ...rawGeo,
+        features: rawGeo.features
+          .map(f => stripFarSouthIslands(f, -38))
+          .filter(Boolean)
+      };
+
+      svg.attr("preserveAspectRatio", "xMidYMid meet");
+
+      countriesGroup = svg.append("g").attr("class", "countries");
+
+      const features = geoData.features.map(f => {
+        const p = f.properties || {};
+        const iso = p.ISO_A3 || p.iso_a3 || p.ID || "";
+        const name = p.ADMIN || p.name || iso;
+        const hasData = !!stats[iso];
+        f.__iso = iso;
+        f.__name = name;
+        f.__hasData = hasData;
+        return f;
+      });
+
+      countriesGroup.selectAll("path")
+        .data(features)
+        .join("path")
+        .attr("class", d => d.__hasData ? "country has-data" : "country")
+        .attr("d", path)
+        .on("mouseover", function(_, d) {
+          if (!d.__hasData) return;
+          d3.select(this).classed("hover", true);
+        })
+        .on("mouseout", function(_, d) {
+          if (!d.__hasData) return;
+          d3.select(this).classed("hover", false);
+        })
+        .on("click", function(event, d) {
+          if (!d.__hasData) return;
+          event.stopPropagation();
+
+          countriesGroup.selectAll(".country").classed("active", false);
+          d3.select(this).classed("active", true);
+
+          const data = stats[d.__iso];
+          cardTitle.textContent = data.country || d.__name;
+          popVal.textContent = data.population ?? "N/A";
+          gdpVal.textContent = data.gdp_per_capita ?? "N/A";
+          uniVal.textContent = data.universities ?? "N/A";
+          youthVal.textContent = data.youth_population ?? "N/A";
+          youthUnempVal.textContent = data.youth_unemployment ?? "N/A";
+          sectorVal.textContent = data.dominant_sector ?? "N/A";
+          descriptionText.textContent = data.description || "No description available.";
+
+          // Populate sources
+          sourcesContainer.innerHTML = "";
+          if (data.sources && data.sources.length > 0) {
+            data.sources.forEach(source => {
+              const link = document.createElement("a");
+              link.className = source.url ? "source-link" : "source-link placeholder";
+              link.textContent = source.label;
+              if (source.url) {
+                link.href = source.url;
+                link.target = "_blank";
+                link.rel = "noopener noreferrer";
+              } else {
+                link.textContent = source.label + " (link coming soon)";
+              }
+              sourcesContainer.appendChild(link);
+            });
+          } else {
+            sourcesContainer.innerHTML = '<div class="source-link placeholder">Sources will be added</div>';
+          }
+
+          showCardAt(event.clientX, event.clientY);
+        });
+
+      updateProjectionAndZoom();
+
+    }).catch(console.error);
+  })();
+  </script>
+</body>
+</html>
