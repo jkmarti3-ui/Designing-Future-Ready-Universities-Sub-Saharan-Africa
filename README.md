@@ -90,6 +90,7 @@ Country-level attributes are stored as a lookup object keyed by **ISO Alpha-3 co
     "youth_pct": "percentage string"
   }
 }
+```
 
 ## Field Definitions
 
@@ -117,27 +118,6 @@ This design ensures stability even with partial or incomplete data coverage.
 
 ---
 
-## Angola Data Verification (Example)
-
-- **Country:** Angola  
-- **ISO Alpha-3 Code:** `AGO`
-- Geometry includes mainland Angola and the Cabinda exclave
-- Data presence is validated by matching `AGO` across GeoJSON and attribute data
-- Values are checked for internal consistency and reasonable demographic magnitude
-- Angola is treated as a single sovereign unit with no sub-national differentiation
-
----
-
-## Temporal Scope
-
-- All data represents a **single reference snapshot**
-- Projection values (e.g., 2050 estimates) are static and precomputed
-- No real-time updates or time-series visualization are supported
-
-Comparisons between countries are valid **only within the same documented reference year**.
-
----
-
 ## Data Quality & Limitations
 
 - Data accuracy depends on upstream reporting sources and update cycles
@@ -162,12 +142,6 @@ When updating the dataset or geometry:
 
 ## Compliance Notice
 
-This visualization:
-
-- must not be cited as an official statistical source
-- is not suitable for policy, legal, or regulatory decision-making
-- is restricted to internal exploratory and demonstrative use
-
 Any external publication, sharing, or presentation derived from this tool requires separate review and authorization.
 
 ---
@@ -176,6 +150,6 @@ Any external publication, sharing, or presentation derived from this tool requir
 
 ### Restricted Use License
 
-This project is proprietary and confidential.  
+This project is proprietary of UDI and ASU.  
 No rights are granted for reuse, redistribution, modification, or publication without explicit written authorization.
 
