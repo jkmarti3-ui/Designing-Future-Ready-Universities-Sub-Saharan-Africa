@@ -89,7 +89,9 @@ Country-level attributes are stored as a lookup object keyed by **ISO Alpha-3 co
     "universities": number,
     "youth_pct": "percentage string"
   }
-}## Field Definitions
+}
+
+## Field Definitions
 
 | Field | Type | Description |
 |------|------|-------------|
