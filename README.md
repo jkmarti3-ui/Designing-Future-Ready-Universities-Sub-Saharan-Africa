@@ -1,89 +1,190 @@
-Overview
+# Africa Interactive Map  
+**Internal / Restricted Use Only**
 
-This project is a self-contained, interactive SVG map of the African continent built using D3.js (v7). The application visualizes country-level data and displays a contextual information card when a country with available data is selected.
+---
 
-This tool is intended strictly for internal, controlled use. It is not designed, licensed, or approved for public distribution or third-party reuse.
+## Overview
 
-Access & Usage Restrictions
+This project is a self-contained interactive SVG map of the African continent built using **D3.js (v7)**.  
+The map renders country-level geographic boundaries and displays contextual demographic and institutional data through an on-click information card.
 
-This codebase and associated datasets are restricted.
+This application is intended **strictly for internal use**. It is not designed, licensed, or approved for public access, reuse, or redistribution.
 
-Unauthorized reuse, redistribution, or external publication is prohibited.
+---
 
-Any derivative work or data extraction requires explicit approval from the project owner.
+## Access & Usage Restrictions
 
-The visualization is intended for exploratory and illustrative purposes only.
+- This codebase and all associated datasets are **confidential and restricted**.
+- Unauthorized copying, reuse, redistribution, or publication is prohibited.
+- Any derivative work, data extraction, or external presentation requires explicit approval from the project owner.
+- The visualization is intended for **internal exploratory, analytical, and demonstrative purposes only**.
 
-Functional Description
+---
 
-Renders an Africa-only map using GeoJSON geometry.
+## Functional Description
 
-Highlights countries for which attribute data exists.
+The application provides the following functionality:
 
-Displays a modal-style information card on user interaction.
+- Renders an Africa-only map using GeoJSON country boundaries
+- Highlights countries for which attribute data exists
+- Displays a modal-style information card when a country is selected
+- Supports zooming, panning, and responsive resizing
+- Gracefully handles missing or incomplete data without runtime failure
 
-Supports zooming, panning, and responsive resizing.
+Countries without associated data remain visible but are not interactive.
 
-Gracefully handles missing or incomplete data.
+---
 
-Countries without associated data remain visible but inactive.
+## Technology Stack
 
-Technology Stack
+- HTML5
+- CSS3 (inline styling)
+- JavaScript (ES6)
+- D3.js v7
+- GeoJSON (country-level geometry)
 
-HTML5
+No backend services, databases, or authentication layers are required.
 
-CSS3 (inline styling)
+---
 
-JavaScript (ES6)
+## Project Structure
 
-D3.js v7
+# Africa Interactive Map  
+**Internal / Restricted Use Only**
 
-GeoJSON (country-level geometry)
+---
 
-No backend services or databases are required.
+## Overview
 
-Project Structure
-/africa-interactive-map/
-├─ index.html        # Main application file (HTML, CSS, JS)
-├─ README.md         # Internal documentation
-└─ data/             # Optional external data files (if used)
+This project is a self-contained interactive SVG map of the African continent built using **D3.js (v7)**.  
+The map renders country-level geographic boundaries and displays contextual demographic and institutional data through an on-click information card.
 
-Geographic Data Description
-Geometry Source
+This application is intended **strictly for internal use**. It is not designed, licensed, or approved for public access, reuse, or redistribution.
 
-Format: GeoJSON (FeatureCollection)
+---
 
-Scope: African countries only
+## Access & Usage Restrictions
 
-Granularity: National-level polygons
+- This codebase and all associated datasets are **confidential and restricted**.
+- Unauthorized copying, reuse, redistribution, or publication is prohibited.
+- Any derivative work, data extraction, or external presentation requires explicit approval from the project owner.
+- The visualization is intended for **internal exploratory, analytical, and demonstrative purposes only**.
 
-Projection: Rendered via d3.geoMercator
+---
 
-Required Geometry Attributes
+## Functional Description
 
-Each feature must contain at least one valid country identifier:
+The application provides the following functionality:
 
-ISO_A3 (preferred)
+- Renders an Africa-only map using GeoJSON country boundaries
+- Highlights countries for which attribute data exists
+- Displays a modal-style information card when a country is selected
+- Supports zooming, panning, and responsive resizing
+- Gracefully handles missing or incomplete data without runtime failure
 
-iso_a3 (fallback)
+Countries without associated data remain visible but are not interactive.
 
-ID (fallback)
+---
 
-These identifiers are used to join statistical data to map geometry.
+## Technology Stack
 
-Geometry Assumptions
+- HTML5
+- CSS3 (inline styling)
+- JavaScript (ES6)
+- D3.js v7
+- GeoJSON (country-level geometry)
 
-Multipart countries (e.g., Angola including Cabinda) are preserved.
+No backend services, databases, or authentication layers are required.
 
-No sub-national boundaries are included.
+---
 
-Geometry is static and not modified at runtime.
+## Project Structure
 
-Attribute (Statistical) Data Description
-Data Model
+# Africa Interactive Map  
+**Internal / Restricted Use Only**
 
-Country data is stored as a lookup object keyed by ISO Alpha-3 codes.
+---
 
+## Overview
+
+This project is a self-contained interactive SVG map of the African continent built using **D3.js (v7)**.  
+The map renders country-level geographic boundaries and displays contextual demographic and institutional data through an on-click information card.
+
+This application is intended **strictly for internal use**. It is not designed, licensed, or approved for public access, reuse, or redistribution.
+
+---
+
+## Access & Usage Restrictions
+
+- This codebase and all associated datasets are **confidential and restricted**.
+- Unauthorized copying, reuse, redistribution, or publication is prohibited.
+- Any derivative work, data extraction, or external presentation requires explicit approval from the project owner.
+- The visualization is intended for **internal exploratory, analytical, and demonstrative purposes only**.
+
+---
+
+## Functional Description
+
+The application provides the following functionality:
+
+- Renders an Africa-only map using GeoJSON country boundaries
+- Highlights countries for which attribute data exists
+- Displays a modal-style information card when a country is selected
+- Supports zooming, panning, and responsive resizing
+- Gracefully handles missing or incomplete data without runtime failure
+
+Countries without associated data remain visible but are not interactive.
+
+---
+
+## Technology Stack
+
+- HTML5
+- CSS3 (inline styling)
+- JavaScript (ES6)
+- D3.js v7
+- GeoJSON (country-level geometry)
+
+No backend services, databases, or authentication layers are required.
+
+---
+
+---
+
+## Geographic Data Description
+
+### Geometry Source
+
+- **Format:** GeoJSON (FeatureCollection)
+- **Coverage:** African continent only
+- **Granularity:** National-level polygons
+- **Projection:** Rendered using `d3.geoMercator`
+
+### Required Geometry Attributes
+
+Each GeoJSON feature must contain at least one stable country identifier:
+
+- `ISO_A3` (preferred)
+- `iso_a3` (fallback)
+- `ID` (fallback)
+
+These identifiers are used to associate attribute data with geographic features.
+
+### Geometry Assumptions
+
+- Multipart countries (e.g., Angola including Cabinda) are preserved
+- No sub-national or administrative boundaries are included
+- Geometry is static and not altered at runtime
+
+---
+
+## Attribute (Statistical) Data Description
+
+### Data Model
+
+Country-level attributes are stored as a lookup object keyed by **ISO Alpha-3 codes**.
+
+```json
 {
   "ISO_A3": {
     "country": "Country name",
@@ -92,92 +193,91 @@ Country data is stored as a lookup object keyed by ISO Alpha-3 codes.
     "universities": number,
     "youth_pct": "percentage string"
   }
-}
+}## Field Definitions
 
-Field Definitions
-Field	Type	Description
-country	String	Display name of the country
-population	String	Total population for the reference year
-projected2050	String	Static population projection for 2050
-universities	Number	Count of recognized tertiary institutions
-youth_pct	String	Share of population classified as youth
+| Field | Type | Description |
+|------|------|-------------|
+| `country` | String | Display name of the country |
+| `population` | String | Total population for the reference year |
+| `projected2050` | String | Static population projection for 2050 |
+| `universities` | Number | Count of recognized tertiary institutions |
+| `youth_pct` | String | Share of population classified as youth |
 
-Numeric fields may be stored as strings to preserve formatting consistency.
-The dataset is not intended for analytical computation within the application.
+> Numeric values may be stored as formatted strings to preserve display consistency.  
+> The dataset is not intended for computational or analytical processing within the application.
 
-Data Integration Logic
+---
 
-A country becomes interactive only if its ISO code exists in the data lookup.
+## Data Integration Logic
 
-Interactive countries receive the CSS class has-data.
+- A country becomes interactive only if its **ISO Alpha-3 code** exists in the attribute dataset
+- Interactive countries are assigned the CSS class `has-data`
+- Clicking an active country opens an information card populated from the dataset
+- Missing values default to `"N/A"` and do not interrupt rendering
 
-Clicking an active country opens an information card populated from the dataset.
+This design ensures stability even with partial or incomplete data coverage.
 
-Missing fields default to "N/A" and do not break rendering.
+---
 
-This approach ensures robust rendering even with partial coverage.
+## Angola Data Verification (Example)
 
-Angola Data Verification (Example)
+- **Country:** Angola  
+- **ISO Alpha-3 Code:** `AGO`
+- Geometry includes mainland Angola and the Cabinda exclave
+- Data presence is validated by matching `AGO` across GeoJSON and attribute data
+- Values are checked for internal consistency and reasonable demographic magnitude
+- Angola is treated as a single sovereign unit with no sub-national differentiation
 
-ISO Alpha-3 Code: AGO
+---
 
-Geometry includes mainland Angola and Cabinda.
+## Temporal Scope
 
-Data presence is verified by matching AGO in both GeoJSON and stats lookup.
+- All data represents a **single reference snapshot**
+- Projection values (e.g., 2050 estimates) are static and precomputed
+- No real-time updates or time-series visualization are supported
 
-Values are checked for internal consistency and reasonable demographic scale.
+Comparisons between countries are valid **only within the same documented reference year**.
 
-Angola is treated as a single sovereign unit; no internal subdivisions are shown.
+---
 
-Temporal Scope
+## Data Quality & Limitations
 
-All data represents a single reference snapshot.
+- Data accuracy depends on upstream reporting sources and update cycles
+- Institutional counts (e.g., universities) may vary based on definitional criteria
+- No automated validation, reconciliation, or update pipeline exists in the current version
 
-Projection values (e.g., 2050 estimates) are static and precomputed.
+All outputs should be interpreted as **indicative rather than authoritative**.
 
-No real-time updates or time-series animation are supported.
+---
 
-Comparisons are valid only within the same documented reference year.
+## Maintenance & Update Guidelines
 
-Data Quality & Limitations
+When updating the dataset or geometry:
 
-Data accuracy depends on upstream sources and reporting lag.
+1. Verify ISO Alpha-3 codes prior to data ingestion
+2. Update attribute data independently from map geometry
+3. Spot-check values against trusted institutional sources
+4. Revalidate multipart countries after GeoJSON changes
+5. Document reference year and data provenance for each update
 
-Institutional counts (e.g., universities) may vary by classification criteria.
+---
 
-The application does not perform statistical validation at runtime.
-
-All outputs should be interpreted as indicative, not authoritative.
-
-Maintenance & Update Guidelines
-
-When updating the dataset:
-
-Verify ISO Alpha-3 codes before ingestion.
-
-Update attribute data independently from geometry.
-
-Spot-check values against trusted institutional sources.
-
-Revalidate multipart geometries (e.g., Angola) after GeoJSON changes.
-
-Document reference year and data provenance for each update.
-
-Compliance Notice
+## Compliance Notice
 
 This visualization:
 
-must not be cited as an official statistical source,
+- must not be cited as an official statistical source
+- is not suitable for policy, legal, or regulatory decision-making
+- is restricted to internal exploratory and demonstrative use
 
-is not suitable for policy or legal decision-making,
+Any external publication, sharing, or presentation derived from this tool requires separate review and authorization.
 
-is restricted to internal exploratory use.
+---
 
-Any external publication or presentation derived from this tool requires separate review and approval.
+## License
 
-License
+### Restricted Use License
 
-Restricted Use License
+This project is proprietary and confidential.  
+No rights are granted for reuse, redistribution, modification, or publication without explicit written authorization.
 
-This project is proprietary and confidential.
-No rights are granted for reuse, redistribution, or modification without explicit authorization.
